@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoodMate - Your Personal Emotion Companion</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+
+    <div class="container">
+        <header class="header">
+            <h1>🌟 MoodMate</h1>
+            <p class="subtitle">Your Personal AI Emotion Companion</p>
+            <div class="system-status {% if fallback_mode %}fallback{% endif %}" 
+                 onclick="showSystemStatus()" 
+                 title="Click to view system status">
+                {% if fallback_mode %}⚠️ Fallback Mode{% else %}✅ AI Active{% endif %}
+            </div>
+        </header>
+
+        <div class="demo-controls" style="display: {% if demo_mode %}flex{% else %}none{% endif %};">
+            <button class="demo-btn" onclick="resetDemo()">🔄 Reset Demo</button>
+            <button class="demo-btn" onclick="generateSampleData()">📊 Generate Sample Data</button>
+            <button class="demo-btn" onclick="showComparison()">⚖️ Compare Emotions</button>
+            <button class="demo-btn" onclick="toggleRealtimePreview()">👁️ Real-time Preview</button>
+        </div>
+
+        {% if error_message %}
+        <div class="error-message">
+            {{ error_message }}
+        </div>
+        {% endif %}
+
+        <div class="main-layout">
+            
+            <main class="content-area">
+                <div class="input-section glass-container">
+                    <form class="input-form" method="POST" onsubmit="handleSubmit(event)">
+                        <label for="user_input">How are you feeling right now? Share what's on your mind...</label>
+                        <textarea name="user_input" 
+                                  id="user_input" 
+                                  placeholder="I'm feeling... because..."
+                                  oninput="handleTextInput(this)"
+                                  required></textarea>
+                        <div class="emotion-preview" id="emotion-preview"></div>
+                        <button type="submit" class="submit-btn" id="submit-btn">
+                            ✨ Analyze My Mood
+                        </button>
+                    </form>
+                    <div class="loading" id="loading">
+                        <div class="spinner"></div>
+                        <p>Analyzing your emotions with AI...</p>
+                    </div>
+                </div>
+
+                {% if persona and emotion_data %}
+                <div class="persona-section glass-container">
+                    <div class="persona-header">
+                        <div class="persona-avatar" onclick="showPersonaDetails('{{ emotion_data.emotion }}')">
+                            {{ persona.avatar }}
+                        </div>
+                        <div class="persona-info">
+                            <h2>Meet {{ persona.name }}</h2>
+                            <p class="persona-traits">{{ persona.personality }}</p>
+                            <div class="emotion-confidence">
+                                <span style="font-weight: 600;">Detected: <strong>{{ emotion_data.emotion.title() }}</strong></span>
+                                <div class="confidence-bar">
+                                    <div class="confidence-fill" style="width: {{ (emotion_data.confidence * 100)|round }}%"></div>
+                                </div>
+                                <span style="font-weight: 600;">{{ "%.0f"|format(emotion_data.confidence * 100) }}%</span>
+                            </div>
+                            {% if emotion_data.intensity %}
+                            <div class="intensity-badge">
+                                {{ emotion_data.intensity }} intensity
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if greeting %}
+                    <div class="persona-greeting">
+                        {{ greeting }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if quote %}
+                <div class="quote-section">
+                    {{ quote }}
+                    <br><small>- {{ persona.name }}</small>
+                </div>
+                {% endif %}
+
+                {% if spotify_tracks %}
+                <div class="content-card featured-music-card glass-container">
+                    <h3>🎵 Music for Your Mood</h3>
+                    <p>A featured track for your {{ emotion_data.emotion }} mood.</p>
+                    {% for track_id in spotify_tracks[:3] %}
+                    <iframe src="https://open.spotify.com/embed/track/{{ track_id }}?utm_source=generator&theme=0" 
+                            class="spotify-track {% if loop.first %}featured-track{% endif %}" 
+                            frameborder="0" 
+                            allowfullscreen=""
+                            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                            loading="lazy">
+                    </iframe>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="content-grid">
+                    {% if activities %}
+                    <div class="content-card glass-container">
+                        <h3>🎯 Personalized Activities</h3>
+                        <ul class="activities-list">
+                            {% for activity in activities %}
+                            <li onclick="selectActivity(this)">{{ activity }}</li>
+                            {% endfor %}
+                        </ul>
+                        <button class="activity-btn" onclick="getMoreActivities('{{ emotion_data.emotion | default('neutral') }}')">
+                            🎲 Get More Ideas
+                        </button>
+                    </div>
+                    {% endif %}
+                    {% if game_url %}
+
+                     <div class="content-card glass-container">
+                <h3>🎮 Interactive Therapy Game</h3>
+                <div class="game-container">
+                    <p>A therapeutic game for your <strong>{{ emotion_data.emotion | default('current') }}</strong> state:</p>
+                            <a href="{{ game_url }}" class="game-btn" target="_blank">
+                                🎯 Start Playing
+                            </a>
+                    <p>
+                        Games can help process emotions in a healthy, engaging way.
+                    </p>
+                </div>
+            </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </main>
+
+            {% if persona %}
+            <aside class="sidebar-area">
+                <div class="chat-section glass-container">
+                    <div class="chat-header">
+                        <div class="persona-avatar small">
+                            {{ persona.avatar }}
+                        </div>
+                        <div>
+                            <h3>Chat with {{ persona.name }}</h3>
+                            <p>Your personal AI therapist</p>
+                            <div id="llama-status"></div>
+                        </div>
+                        <button title="Clear Chat History" onclick="clearChatHistory()" class="clear-chat-btn">
+                            🗑️
+                        </button>
+                    </div>
+                    
+                    <div id="chat-messages" class="chat-messages-container">
+                        <div class="welcome-message"></div>
+                    </div>
+                    
+                    <div class="chat-input-section">
+                        <input type="text" 
+                               id="chat-input" 
+                               placeholder="Type your message here..." 
+                               onkeypress="handleChatKeyPress(event)">
+                        <button onclick="sendChatMessage()" id="send-button" class="send-chat-btn">
+                            Send
+                        </button>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">
+                        Press Enter to send.
+                    </div>
+                </div>
+            </aside>
+            {% endif %}
+        </div>
+    </div>
+
+    <div id="historyModal" class="modal"><div class="modal-content"><span class="close" onclick="closeModal('historyModal')">×</span><h2>📊 Your Mood Journey</h2><div id="history-content"></div></div></div>
+    <div id="analyticsModal" class="modal"><div class="modal-content"><span class="close" onclick="closeModal('analyticsModal')">×</span><h2>📈 Analytics Dashboard</h2><div id="analytics-content"></div></div></div>
+    <div id="comparisonModal" class="modal"><div class="modal-content"><span class="close" onclick="closeModal('comparisonModal')">×</span><h2>⚖️ Emotion Comparison Tool</h2><div id="comparison-content"></div></div></div>
+    <div id="personaModal" class="modal"><div class="modal-content"><span class="close" onclick="closeModal('personaModal')">×</span><h2 id="persona-modal-title"></h2><div id="persona-modal-body"></div></div></div>
+    <div id="systemStatusModal" class="modal"><div class="modal-content"><span class="close" onclick="closeModal('systemStatusModal')">×</span><h2>🛠️ System Status</h2><div id="system-status-content"></div></div></div>
+
+    <div class="floating-buttons">
+        <button class="floating-btn history-btn" onclick="showHistory()" title="View Mood History">📊</button>
+        <button class="floating-btn analytics-btn" onclick="showAnalytics()" title="Analytics Dashboard">📈</button>
+        <button class="floating-btn compare-btn" onclick="showComparison()" title="Compare Emotions">⚖️</button>
+    </div>
+
+    <script>
+        window.appData = {
+            currentEmotion: '{{ emotion_data.emotion if emotion_data else "neutral" }}',
+            personaExists: {{ 'true' if persona else 'false' }},
+            personaName: '{{ persona.name if persona else "" }}',
+            emotionData: {{ emotion_data | tojson | safe if emotion_data else 'null' }}
+        };
+    </script>
+    <script src="{{ url_for('static', filename='main.js') }}" defer></script>
+</body>
+</html>

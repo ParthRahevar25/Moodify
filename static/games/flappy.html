@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Joy Flight - Therapeutic Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #FFD700, #FFA500, #FF69B4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin: 20px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .therapeutic-message {
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 15px;
+            margin: 10px;
+            max-width: 600px;
+            text-align: center;
+            color: #333;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        #gameCanvas {
+            border: 4px solid #FFD700;
+            border-radius: 15px;
+            background: linear-gradient(180deg, #87CEEB 0%, #98FB98 100%);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin: 20px;
+        }
+        
+        .controls {
+            background: rgba(255,255,255,0.9);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 10px;
+            text-align: center;
+            color: #333;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .score {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin: 10px 0;
+        }
+        
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.95);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: none;
+        }
+        
+        .restart-btn {
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.3s ease;
+        }
+        
+        .restart-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .affirmation {
+            font-style: italic;
+            color: #666;
+            margin-top: 15px;
+            font-size: 1.1rem;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        
+        .joy-particle {
+            position: absolute;
+            color: #FFD700;
+            font-size: 2rem;
+            animation: bounce 2s infinite;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌟 Joy Flight</h1>
+        <p>Let your happiness soar through the clouds!</p>
+    </div>
+    
+    <div class="therapeutic-message">
+        <strong>🎯 Therapeutic Goal:</strong> This game helps channel your joy and excitement into focused, positive action. 
+        Each successful flight represents your ability to navigate life's challenges while maintaining your happiness!
+    </div>
+    
+    <div class="score">Score: <span id="score">0</span></div>
+    
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    
+    <div class="controls">
+        <p><strong>🎮 Controls:</strong> Press SPACEBAR or click to flap and fly!</p>
+        <p><strong>✨ Affirmation:</strong> "I choose joy and let it lift me higher!"</p>
+    </div>
+    
+    <div class="game-over" id="gameOver">
+        <h2>🎉 Beautiful Flight!</h2>
+        <p>Your joy took you far today!</p>
+        <div class="affirmation" id="finalAffirmation"></div>
+        <button class="restart-btn" onclick="restartGame()">🌟 Fly Again</button>
+        <button class="restart-btn" onclick="goHome()">🏠 Back to MoodMate</button>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Game variables
+    let bird = {
+        x: 100,
+        y: 300,
+        velocity: 0,
+        size: 30
+    };
+    
+    let pipes = [];
+    let score = 0;
+    let gameRunning = false;
+    let gameStarted = false;
+    
+    const gravity = 0.6;
+    const jumpStrength = -12;   // ✅ renamed from 'jump'
+    const pipeWidth = 60;
+    const pipeGap = 180;
+    
+    // Joy affirmations based on score
+    const joyAffirmations = [
+        "Your joy is contagious and beautiful! ✨",
+        "You're spreading happiness wherever you go! 🌈",
+        "Your positive energy lights up everything! ☀️",
+        "Joy is your superpower - use it wisely! ⚡",
+        "You're proof that happiness is a choice! 💫",
+        "Your smile can change someone's entire day! 😊",
+        "Joy multiplies when shared - keep spreading it! 🎉",
+        "You're a beacon of positivity in this world! 🌟",
+        "Your happiness is an inspiration to others! 💖",
+        "Joy is the best medicine - you're healing! 🌸"
+    ];
+    
+    // Initialize game
+    function initGame() {
+        bird.y = 300;
+        bird.velocity = 0;
+        pipes = [];
+        score = 0;
+        gameRunning = true;
+        gameStarted = true;
+        document.getElementById('score').textContent = score;
+        document.getElementById('gameOver').style.display = 'none';
+        
+        // Create first pipe
+        pipes.push({
+            x: canvas.width,
+            topHeight: Math.random() * (canvas.height - pipeGap - 200) + 100
+        });
+    }
+    
+    // Draw bird (happy sun emoji style)
+    function drawBird() {
+        ctx.save();
+        
+        // Bird body (golden circle)
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.arc(bird.x, bird.y, bird.size, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Bird face
+        ctx.fillStyle = '#FFA500';
+        ctx.font = `${bird.size}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText('😊', bird.x, bird.y + bird.size/3);
+        
+        // Sparkle effect around bird
+        const sparkles = ['✨', '⭐', '💫'];
+        for(let i = 0; i < 3; i++) {
+            const angle = (Date.now() / 1000 + i * 2) % (Math.PI * 2);
+            const sparkleX = bird.x + Math.cos(angle) * (bird.size + 20);
+            const sparkleY = bird.y + Math.sin(angle) * (bird.size + 20);
+            
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#FFD700';
+            ctx.fillText(sparkles[i], sparkleX, sparkleY);
+        }
+        
+        ctx.restore();
+    }
+    
+    // Draw pipes (rainbow colored)
+    function drawPipes() {
+        pipes.forEach((pipe, index) => {
+            // Top pipe
+            const gradient1 = ctx.createLinearGradient(pipe.x, 0, pipe.x + pipeWidth, 0);
+            gradient1.addColorStop(0, '#FF69B4');
+            gradient1.addColorStop(1, '#FF1493');
+            
+            ctx.fillStyle = gradient1;
+            ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
+            
+            // Bottom pipe
+            const gradient2 = ctx.createLinearGradient(pipe.x, 0, pipe.x + pipeWidth, 0);
+            gradient2.addColorStop(0, '#00BFFF');
+            gradient2.addColorStop(1, '#0080FF');
+            
+            ctx.fillStyle = gradient2;
+            ctx.fillRect(pipe.x, pipe.topHeight + pipeGap, pipeWidth, canvas.height - pipe.topHeight - pipeGap);
+            
+            // Add sparkle decorations
+            if (index % 2 === 0) {
+                ctx.font = '20px Arial';
+                ctx.fillStyle = '#FFD700';
+                ctx.fillText('⭐', pipe.x + pipeWidth/2, pipe.topHeight + pipeGap/2);
+            }
+        });
+    }
+    
+    // Draw background
+    function drawBackground() {
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, '#87CEEB');
+        gradient.addColorStop(1, '#98FB98');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        const time = Date.now() / 1000;
+        const particles = ['🌟', '✨', '💫', '⭐', '🌈'];
+        
+        for(let i = 0; i < 5; i++) {
+            const x = (time * 50 + i * 150) % (canvas.width + 100) - 50;
+            const y = 100 + Math.sin(time + i) * 50;
+            
+            ctx.font = '24px Arial';
+            ctx.fillStyle = '#FFD700';
+            ctx.fillText(particles[i], x, y);
+        }
+    }
+    
+    // Update game logic
+    function updateGame() {
+        if (!gameRunning) return;
+        
+        bird.velocity += gravity;
+        bird.y += bird.velocity;
+        
+        pipes.forEach(pipe => {
+            pipe.x -= 3;
+        });
+        
+        if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 300) {
+            pipes.push({
+                x: canvas.width,
+                topHeight: Math.random() * (canvas.height - pipeGap - 200) + 100
+            });
+        }
+        
+        pipes = pipes.filter(pipe => pipe.x + pipeWidth > 0);
+        
+        pipes.forEach(pipe => {
+            if (pipe.x + pipeWidth < bird.x && !pipe.scored) {
+                score++;
+                pipe.scored = true;
+                document.getElementById('score').textContent = score;
+                createJoyParticles(bird.x, bird.y);
+            }
+            
+            if (bird.x + bird.size > pipe.x && bird.x - bird.size < pipe.x + pipeWidth) {
+                if (bird.y - bird.size < pipe.topHeight || bird.y + bird.size > pipe.topHeight + pipeGap) {
+                    endGame();
+                }
+            }
+        });
+        
+        if (bird.y + bird.size > canvas.height || bird.y - bird.size < 0) {
+            endGame();
+        }
+    }
+    
+    // Create joy particles effect
+    function createJoyParticles(x, y) {
+        const particles = ['🎉', '✨', '⭐', '💫'];
+        for(let i = 0; i < 4; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'joy-particle';
+            particle.textContent = particles[i];
+            particle.style.left = (x + canvas.offsetLeft) + 'px';
+            particle.style.top = (y + canvas.offsetTop) + 'px';
+            document.body.appendChild(particle);
+            
+            setTimeout(() => {
+                if (particle.parentNode) {
+                    particle.parentNode.removeChild(particle);
+                }
+            }, 2000);
+        }
+    }
+    
+    // End game
+    function endGame() {
+        gameRunning = false;
+        const gameOverDiv = document.getElementById('gameOver');
+        const affirmationDiv = document.getElementById('finalAffirmation');
+        
+        let affirmationIndex = Math.min(Math.floor(score / 2), joyAffirmations.length - 1);
+        affirmationDiv.textContent = joyAffirmations[affirmationIndex];
+        
+        if (score >= 20) {
+            gameOverDiv.querySelector('h2').textContent = '🏆 Joy Master!';
+            gameOverDiv.querySelector('p').textContent = 'Your happiness knows no bounds!';
+        } else if (score >= 10) {
+            gameOverDiv.querySelector('h2').textContent = '🌟 Joyful Journey!';
+            gameOverDiv.querySelector('p').textContent = 'You soared with incredible happiness!';
+        } else if (score >= 5) {
+            gameOverDiv.querySelector('h2').textContent = '✨ Happy Flight!';
+            gameOverDiv.querySelector('p').textContent = 'Your joy carried you beautifully!';
+        }
+        
+        gameOverDiv.style.display = 'block';
+    }
+    
+    // Game loop
+    function gameLoop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        drawBackground();
+        
+        if (gameStarted) {
+            updateGame();
+            drawPipes();
+            drawBird();
+        } else {
+            drawBird();
+            ctx.font = '36px Arial';
+            ctx.fillStyle = '#FFD700';
+            ctx.textAlign = 'center';
+            ctx.fillText('🌟 Joy Flight 🌟', canvas.width/2, 200);
+            
+            ctx.font = '24px Arial';
+            ctx.fillStyle = '#333';
+            ctx.fillText('Press SPACEBAR or Click to Start!', canvas.width/2, 250);
+            
+            ctx.font = '18px Arial';
+            ctx.fillStyle = '#666';
+            ctx.fillText('Let your happiness lift you up!', canvas.width/2, 280);
+        }
+        
+        requestAnimationFrame(gameLoop);
+    }
+    
+    // Controls
+    function jump() {
+        if (!gameStarted) {
+            initGame();
+        } else if (gameRunning) {
+            bird.velocity = jumpStrength;  // ✅ fixed reference
+        }
+    }
+    
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            e.preventDefault();
+            jump();
+        }
+    });
+    
+    canvas.addEventListener('click', jump);
+    
+    function restartGame() {
+        gameStarted = false;
+        gameRunning = false;
+        document.getElementById('gameOver').style.display = 'none';
+    }
+    
+    function goHome() {
+        if (window.opener) {
+            window.close();
+        } else {
+            window.history.back();
+        }
+    }
+    
+    // Start game loop
+    gameLoop();
+</script>
+
+</body>
+</html>

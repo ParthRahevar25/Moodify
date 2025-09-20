@@ -1,0 +1,9 @@
+{
+  "joy": ["Keep smiling!", "Happiness is contagious!"],
+  "sadness": ["It's okay to feel down. Better days are coming."],
+  "anger": ["Take a deep breath. You’ve got this."],
+  "fear": ["Bravery is not the absence of fear."],
+  "surprise": ["Life is full of surprises!"],
+  "love": ["You are deeply loved."],
+  "neutral": ["Keep going. You’re doing fine."]
+}

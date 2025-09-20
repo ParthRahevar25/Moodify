@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calm Waters - Healing Meditation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #6B73FF, #9A8CF5, #C4B5FD);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .header {
+            text-align: center;
+            margin: 20px;
+            opacity: 0.9;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .therapeutic-message {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px;
+            max-width: 600px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .meditation-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+        }
+        
+        .breathing-circle {
+            width: 300px;
+            height: 300px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin: 40px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1), transparent);
+            backdrop-filter: blur(5px);
+            transition: all 4s ease-in-out;
+        }
+        
+        .breathing-circle.inhale {
+            transform: scale(1.3);
+            background: radial-gradient(circle, rgba(135,206,235,0.3), transparent);
+            border-color: rgba(135,206,235,0.8);
+            box-shadow: 0 0 30px rgba(135,206,235,0.4);
+        }
+        
+        .breathing-circle.exhale {
+            transform: scale(0.8);
+            background: radial-gradient(circle, rgba(147,112,219,0.3), transparent);
+            border-color: rgba(147,112,219,0.8);
+            box-shadow: 0 0 30px rgba(147,112,219,0.4);
+        }
+        
+        .breathing-text {
+            font-size: 2rem;
+            font-weight: 300;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            transition: all 1s ease;
+        }
+        
+        .breathing-guide {
+            font-size: 1.2rem;
+            margin: 20px;
+            text-align: center;
+            opacity: 0.8;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .control-btn {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .control-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        
+        .control-btn.active {
+            background: rgba(255,255,255,0.4);
+            box-shadow: 0 0 20px rgba(255,255,255,0.3);
+        }
+        
+        .stats {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .floating-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .particle {
+            position: absolute;
+            color: rgba(255,255,255,0.6);
+            font-size: 1.5rem;
+            animation: float 8s infinite ease-in-out;
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        .affirmations {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px;
+            max-width: 500px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .affirmation-text {
+            font-size: 1.3rem;
+            font-style: italic;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+        
+        .affirmation-text.show {
+            opacity: 1;
+        }
+        
+        .music-controls {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 15px;
+            margin: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .wave {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100px;
+            height: 100px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: ripple 3s infinite;
+        }
+        
+        @keyframes ripple {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(3);
+                opacity: 0;
+            }
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+    <button class="back-btn" onclick="goHome()">🏠 Back to MoodMate</button>
+    
+    <div class="header">
+        <h1>🌙 Calm Waters</h1>
+        <p>A gentle space for healing and peace</p>
+    </div>
+    
+    <div class="therapeutic-message">
+        <strong>🎯 Therapeutic Purpose:</strong> This breathing meditation helps you process sadness in a healthy way. 
+        Each breath is a step toward inner peace and emotional healing. You're safe here.
+    </div>
+    
+    <div class="meditation-container">
+        <div class="breathing-circle" id="breathingCircle">
+            <div class="breathing-text" id="breathingText">Ready to Begin</div>
+            <div class="wave"></div>
+            <div class="wave" style="animation-delay: 1s;"></div>
+            <div class="wave" style="animation-delay: 2s;"></div>
+        </div>
+        
+        <div class="breathing-guide" id="breathingGuide">
+            Click "Start Breathing" when you're ready to find peace
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button class="control-btn" id="startBtn" onclick="startBreathing()">🌸 Start Breathing</button>
+        <button class="control-btn" id="pauseBtn" onclick="pauseBreathing()" style="display:none;">⏸️ Pause</button>
+        <button class="control-btn" onclick="resetSession()">🔄 Reset</button>
+        <button class="control-btn" onclick="toggleSound(event)">🎵 Sound: ON</button>
+    </div>
+    
+    <div class="stats">
+        <div>Breathing Cycles: <span id="cycleCount">0</span></div>
+        <div>Session Time: <span id="sessionTime">00:00</span></div>
+        <div>Current Phase: <span id="currentPhase">Preparation</span></div>
+    </div>
+    
+    <div class="affirmations">
+        <div class="affirmation-text" id="affirmationText">
+            You are worthy of peace and healing
+        </div>
+    </div>
+    
+    <div class="floating-particles" id="particles"></div>
+
+    <script>
+    // Game state
+    let isBreathing = false;
+    let currentPhase = 'prepare';
+    let cycleCount = 0;
+    let sessionStartTime = null;
+    let sessionTimer = null;
+    let breathingTimer = null;
+    let soundEnabled = true;
+    let affirmationTimer = null;
+    let audioContext = null;  // ✅ one shared AudioContext
+    
+    // Breathing parameters
+    const breathingPattern = {
+        inhale: 4000,
+        holdIn: 2000,
+        exhale: 6000,
+        holdOut: 2000
+    };
+    
+    // Healing affirmations for sadness
+    const healingAffirmations = [
+        "You are worthy of peace and healing",
+        "This sadness will pass, like clouds in the sky",
+        "You are stronger than you know",
+        "It's okay to feel - emotions are messengers",
+        "You are not alone in this journey",
+        "Healing happens one breath at a time",
+        "Your heart knows how to mend itself",
+        "Tomorrow holds new possibilities",
+        "You deserve love and compassion",
+        "This moment of sadness does not define you",
+        "You have survived difficult times before",
+        "Peace is your natural state of being",
+        "You are allowed to grieve and heal",
+        "Your feelings are valid and important",
+        "Hope lives within you, even now"
+    ];
+    
+    // Initialize
+    function init() {
+        createParticles();
+        showAffirmation();
+        updateSessionTimer();
+    }
+    
+    // Create floating particles
+    function createParticles() {
+        const particles = ['💧', '🌸', '🕊️', '✨', '💙', '🌙', '⭐'];
+        const container = document.getElementById('particles');
+        
+        function addParticle() {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.textContent = particles[Math.floor(Math.random() * particles.length)];
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 2 + 's';
+            particle.style.animationDuration = (6 + Math.random() * 4) + 's';
+            
+            container.appendChild(particle);
+            
+            setTimeout(() => {
+                if (particle.parentNode) {
+                    particle.parentNode.removeChild(particle);
+                }
+            }, 10000);
+        }
+        
+        setInterval(addParticle, 2000);
+    }
+    
+    // Start breathing session
+    function startBreathing() {
+        if (isBreathing) return;
+        
+        isBreathing = true;
+        if (!sessionStartTime) {
+            sessionStartTime = Date.now();
+        }
+        
+        document.getElementById('startBtn').style.display = 'none';
+        document.getElementById('pauseBtn').style.display = 'inline-block';
+        document.getElementById('pauseBtn').classList.add('active');
+        
+        breathingCycle();
+    }
+    
+    // Breathing cycle
+    function breathingCycle() {
+        if (!isBreathing) return;
+        
+        const circle = document.getElementById('breathingCircle');
+        const text = document.getElementById('breathingText');
+        const guide = document.getElementById('breathingGuide');
+        const phase = document.getElementById('currentPhase');
+        
+        // Inhale
+        currentPhase = 'inhale';
+        circle.className = 'breathing-circle inhale';
+        text.textContent = 'Breathe In';
+        guide.textContent = 'Slowly breathe in through your nose...';
+        phase.textContent = 'Inhaling';
+        if (soundEnabled) playBreathSound('in');
+        
+        breathingTimer = setTimeout(() => {
+            if (!isBreathing) return;
+            
+            // Hold in
+            currentPhase = 'hold-in';
+            text.textContent = 'Hold';
+            guide.textContent = 'Hold your breath gently...';
+            phase.textContent = 'Holding';
+            
+            breathingTimer = setTimeout(() => {
+                if (!isBreathing) return;
+                
+                // Exhale
+                currentPhase = 'exhale';
+                circle.className = 'breathing-circle exhale';
+                text.textContent = 'Breathe Out';
+                guide.textContent = 'Slowly release through your mouth...';
+                phase.textContent = 'Exhaling';
+                if (soundEnabled) playBreathSound('out');
+                
+                breathingTimer = setTimeout(() => {
+                    if (!isBreathing) return;
+                    
+                    // Hold out
+                    currentPhase = 'hold-out';
+                    text.textContent = 'Rest';
+                    guide.textContent = 'Rest in this peaceful moment...';
+                    phase.textContent = 'Resting';
+                    
+                    breathingTimer = setTimeout(() => {
+                        if (!isBreathing) return;
+                        
+                        cycleCount++;
+                        document.getElementById('cycleCount').textContent = cycleCount;
+                        breathingCycle(); // loop
+                        
+                    }, breathingPattern.holdOut);
+                }, breathingPattern.exhale);
+            }, breathingPattern.holdIn);
+        }, breathingPattern.inhale);
+    }
+    
+    // Pause
+    function pauseBreathing() {
+        isBreathing = false;
+        clearTimeout(breathingTimer);
+        
+        const circle = document.getElementById('breathingCircle');
+        const text = document.getElementById('breathingText');
+        const guide = document.getElementById('breathingGuide');
+        const phase = document.getElementById('currentPhase');
+        
+        circle.className = 'breathing-circle';
+        text.textContent = 'Paused';
+        guide.textContent = 'Take your time. Resume when you\'re ready.';
+        phase.textContent = 'Paused';
+        
+        document.getElementById('startBtn').style.display = 'inline-block';
+        document.getElementById('pauseBtn').style.display = 'none';
+        document.getElementById('pauseBtn').classList.remove('active');
+    }
+    
+    // Reset
+    function resetSession() {
+        isBreathing = false;
+        clearTimeout(breathingTimer);
+        clearInterval(sessionTimer);
+        sessionTimer = null; // ✅ don’t auto-restart timer
+        
+        cycleCount = 0;
+        sessionStartTime = null;
+        
+        const circle = document.getElementById('breathingCircle');
+        const text = document.getElementById('breathingText');
+        const guide = document.getElementById('breathingGuide');
+        const phase = document.getElementById('currentPhase');
+        
+        circle.className = 'breathing-circle';
+        text.textContent = 'Ready to Begin';
+        guide.textContent = 'Click "Start Breathing" when you\'re ready to find peace';
+        phase.textContent = 'Preparation';
+        
+        document.getElementById('cycleCount').textContent = '0';
+        document.getElementById('sessionTime').textContent = '00:00';
+        
+        document.getElementById('startBtn').style.display = 'inline-block';
+        document.getElementById('pauseBtn').style.display = 'none';
+        document.getElementById('pauseBtn').classList.remove('active');
+    }
+    
+    // Timer
+    function updateSessionTimer() {
+        sessionTimer = setInterval(() => {
+            if (sessionStartTime) {
+                const elapsed = Date.now() - sessionStartTime;
+                const minutes = Math.floor(elapsed / 60000);
+                const seconds = Math.floor((elapsed % 60000) / 1000);
+                document.getElementById('sessionTime').textContent =
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }, 1000);
+    }
+    
+    // Affirmations
+    function showAffirmation() {
+        const affirmationElement = document.getElementById('affirmationText');
+        
+        function changeAffirmation() {
+            affirmationElement.classList.remove('show');
+            setTimeout(() => {
+                const randomAffirmation = healingAffirmations[Math.floor(Math.random() * healingAffirmations.length)];
+                affirmationElement.textContent = randomAffirmation;
+                affirmationElement.classList.add('show');
+            }, 500);
+        }
+        
+        setTimeout(() => {
+            affirmationElement.classList.add('show');
+        }, 1000);
+        
+        affirmationTimer = setInterval(changeAffirmation, 15000);
+    }
+    
+    // Sound
+    function playBreathSound(type) {
+        if (!soundEnabled) return;
+        
+        try {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            if (type === 'in') {
+                oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.5);
+            } else {
+                oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.8);
+            }
+            
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.1);
+            gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.8);
+            
+            oscillator.type = 'sine';
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 1);
+            
+        } catch (e) {
+            console.log('Audio not supported');
+        }
+    }
+    
+    // Toggle sound ✅ fixed to take event parameter
+    function toggleSound(e) {
+        soundEnabled = !soundEnabled;
+        const btn = e.target;
+        btn.textContent = soundEnabled ? '🎵 Sound: ON' : '🔇 Sound: OFF';
+        btn.style.opacity = soundEnabled ? '1' : '0.6';
+    }
+    
+    // Home
+    function goHome() {
+        if (window.opener) {
+            window.close();
+        } else {
+            window.history.back();
+        }
+    }
+    
+    // Auto pause on tab change
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && isBreathing) {
+            pauseBreathing();
+        }
+    });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        switch(e.key) {
+            case ' ':
+            case 'Enter':
+                e.preventDefault();
+                if (isBreathing) {
+                    pauseBreathing();
+                } else {
+                    startBreathing();
+                }
+                break;
+            case 'r': case 'R':
+                resetSession();
+                break;
+            case 's': case 'S':
+                toggleSound(e);
+                break;
+            case 'Escape':
+                goHome();
+                break;
+        }
+    });
+    
+    // Init
+    init();
+</script>
+
+</body>
+</html>

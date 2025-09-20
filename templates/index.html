@@ -1,0 +1,2272 @@
+<html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoodMate - Your Personal Emotion Companion</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            transition: all 0.3s ease;
+        }
+
+        /* Dynamic background based on persona */
+        {% if persona %}
+        body {
+            background: linear-gradient(135deg, {{ persona.color_scheme }}33 0%, {{ persona.color_scheme }}66 100%);
+        }
+        {% endif %}
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header Section */
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .system-status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .system-status.fallback {
+            background: rgba(255,165,0,0.3);
+        }
+
+        /* Demo Controls */
+        .demo-controls {
+            display: {% if demo_mode %}flex{% else %}none{% endif %};
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .demo-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .demo-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        /* Input Section */
+        .input-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .input-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .input-form label {
+            font-weight: bold;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        .input-form textarea {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 120px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        .input-form textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .submit-btn {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Error Messages */
+        .error-message {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Real-time Emotion Preview */
+        .emotion-preview {
+            display: none;
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        /* Persona Results Section */
+        .persona-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            transform: scale(0);
+            animation: slideIn 0.5s ease forwards;
+        }
+
+        @keyframes slideIn {
+            to {
+                transform: scale(1);
+            }
+        }
+
+        .persona-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .persona-avatar {
+            font-size: 4rem;
+            animation: bounce 2s infinite;
+            cursor: pointer;
+        }
+
+        .persona-avatar:hover {
+            transform: scale(1.1);
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        .persona-info h2 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+
+        .persona-traits {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+
+        .intensity-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .emotion-confidence {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .confidence-bar {
+            flex-grow: 1;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 3px;
+            transition: width 1s ease;
+        }
+
+        .persona-greeting {
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-align: center;
+            font-size: 1.2rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            opacity: 0;
+            animation: fadeIn 2s ease 0.5s forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .quote-section {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            margin: 20px 0;
+            border-left: 5px solid {{ persona.color_scheme if persona else '#667eea' }};
+            font-size: 1.2rem;
+            font-style: italic;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .quote-section::before {
+            content: '"';
+            font-size: 4rem;
+            color: rgba(0,0,0,0.1);
+            position: absolute;
+            top: -10px;
+            left: 20px;
+        }
+
+
+
+        /* Persona Details Modal */
+        .persona-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+        }
+
+        .persona-modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-modal:hover {
+            color: #000;
+        }
+
+        .personality-traits {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .trait-tag {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+        }
+
+        /* Enhanced Content Grid */
+        .content-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .content-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .content-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+        }
+
+        .content-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .content-card h3 {
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.3rem;
+        }
+
+        /* Enhanced Activities */
+        .activities-list {
+            list-style: none;
+        }
+
+        .activities-list li {
+            padding: 12px 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+            cursor: pointer;
+        }
+
+        .activities-list li:hover {
+            transform: translateX(5px);
+            background: #e9ecef;
+            border-left-color: #667eea;
+        }
+
+        .activity-btn {
+            width: 100%;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .activity-btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        /* Enhanced Emotion Spectrum */
+        .emotion-spectrum {
+            margin: 20px 0;
+        }
+
+        .spectrum-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 12px 0;
+            padding: 8px;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+
+        .spectrum-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .spectrum-label {
+            min-width: 80px;
+            font-weight: bold;
+            text-transform: capitalize;
+        }
+
+        .spectrum-bar {
+            flex-grow: 1;
+            height: 12px;
+            background: #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .spectrum-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 6px;
+            transition: width 1.5s ease;
+        }
+
+        .spectrum-percentage {
+            min-width: 50px;
+            text-align: right;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        /* Enhanced Conversation Starter */
+        .conversation-starter {
+            background: linear-gradient(45deg, #74b9ff, #0984e3);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 20px 0;
+            font-size: 1.1rem;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .conversation-starter:hover {
+            transform: scale(1.02);
+        }
+
+        .conversation-starter::before {
+            content: '💭';
+            font-size: 2rem;
+            position: absolute;
+            top: -10px;
+            left: 20px;
+        }
+
+        /* Enhanced Music Section */
+        .spotify-track {
+            display: block;
+            width: 100%;
+            height: 85px;
+            border: none;
+            border-radius: 10px;
+            margin: 12px 0;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Enhanced Game Section */
+        .game-container {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .game-btn {
+            display: inline-block;
+            padding: 18px 35px;
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .game-btn:hover {
+            transform: scale(1.05) translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        /* Floating Action Buttons */
+        .floating-buttons {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .floating-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+
+        .floating-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .history-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+        }
+
+        .analytics-btn {
+            background: linear-gradient(45deg, #feca57, #ff9ff3);
+        }
+
+        .compare-btn {
+            background: linear-gradient(45deg, #54a0ff, #5f27cd);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        /* History Entry Styles */
+        .history-entry {
+            padding: 20px;
+            margin: 15px 0;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .history-entry:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .history-emotion {
+            font-weight: bold;
+            text-transform: capitalize;
+            font-size: 1.1rem;
+        }
+
+        .history-timestamp {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .history-details {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        .history-confidence, .history-intensity, .history-persona {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 4px 8px;
+            border-radius: 8px;
+        }
+
+        /* Analytics Dashboard */
+        .analytics-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .analytics-stat {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        /* Comparison Tool */
+        .comparison-container {
+            display: grid;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .comparison-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .comparison-text {
+            flex-grow: 1;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+        }
+
+        .add-comparison-btn {
+            padding: 10px 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .comparison-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .comparison-result {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        /* Follow-up Suggestions */
+        .followup-suggestions {
+            display: none;
+            margin-top: 30px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .followup-suggestions.show {
+            display: block;
+            animation: slideInUp 0.5s ease;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .persona-header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .persona-avatar {
+                font-size: 3rem;
+            }
+
+            .floating-buttons {
+                bottom: 20px;
+                right: 20px;
+                gap: 10px;
+            }
+
+            .floating-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+            }
+
+            .system-status {
+                position: relative;
+                display: inline-block;
+                margin-top: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .input-section, .persona-section, .content-card {
+                padding: 20px;
+            }
+
+            .persona-info h2 {
+                font-size: 1.5rem;
+            }
+
+            .quote-section {
+                font-size: 1rem;
+                padding: 20px;
+            }
+        }
+
+        /* Theme Animations */
+        .theme-transition {
+            transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        /* Accessibility */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+
+        /* Focus states */
+        button:focus, input:focus, textarea:focus {
+            outline: 2px solid #667eea;
+            outline-offset: 2px;
+        }
+
+        /* Print styles */
+        @media print {
+            .floating-buttons, .demo-controls, .system-status {
+                display: none;
+            }
+            
+            body {
+                background: white;
+            }
+            
+            .input-section, .persona-section, .content-card {
+                background: white;
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+        }
+    </style>
+</head>
+<body class="theme-transition">
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🌟 MoodMate</h1>
+            <p>Your Personal AI Emotion Companion</p>
+            <div class="system-status {% if fallback_mode %}fallback{% endif %}" 
+                 onclick="showSystemStatus()" 
+                 title="Click to view system status">
+                {% if fallback_mode %}⚠️ Fallback Mode{% else %}✅ AI Active{% endif %}
+            </div>
+        </header>
+
+        <!-- Demo Controls -->
+        <div class="demo-controls">
+            <button class="demo-btn" onclick="resetDemo()">🔄 Reset Demo</button>
+            <button class="demo-btn" onclick="generateSampleData()">📊 Generate Sample Data</button>
+            <button class="demo-btn" onclick="showComparison()">⚖️ Compare Emotions</button>
+            <button class="demo-btn" onclick="toggleRealtimePreview()">👁️ Real-time Preview</button>
+        </div>
+
+        <!-- Error Message -->
+        {% if error_message %}
+        <div class="error-message">
+            {{ error_message }}
+        </div>
+        {% endif %}
+
+        <!-- Input Section -->
+        <div class="input-section">
+            <form class="input-form" method="POST" onsubmit="handleSubmit(event)">
+                <label for="user_input">
+                    How are you feeling right now? Share what's on your mind...
+                </label>
+                <textarea name="user_input" 
+                         id="user_input" 
+                         placeholder="I'm feeling... because..."
+                         oninput="handleTextInput(this)"
+                         required></textarea>
+                
+                <!-- Real-time Emotion Preview -->
+                <div class="emotion-preview" id="emotion-preview">
+                    <span id="preview-text"></span>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submit-btn">
+                    ✨ Analyze My Mood
+                </button>
+            </form>
+            
+            <!-- Loading Animation -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Analyzing your emotions with AI...</p>
+            </div>
+        </div>
+
+        <!-- Persona Results Section -->
+        {% if persona %}
+        <div class="persona-section">
+            <!-- Persona Header -->
+            <div class="persona-header">
+                <div class="persona-avatar" onclick="showPersonaDetails('{{ emotion_data.emotion }}')">
+                    {{ persona.avatar }}
+                </div>
+                <div class="persona-info">
+                    <h2>Meet {{ persona.name }}</h2>
+                    <p class="persona-traits">{{ persona.personality }}</p>
+                    {% if emotion_data %}
+                    <div class="emotion-confidence">
+                        <span>Detected: <strong>{{ emotion_data.emotion.title() }}</strong></span>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" 
+                                 style="width: {{ (emotion_data.confidence * 100)|round }}%"></div>
+                        </div>
+                        <span>{{ "%.0f"|format(emotion_data.confidence * 100) }}%</span>
+                    </div>
+                    {% if emotion_data.intensity %}
+                    <div class="intensity-badge">
+                        {{ emotion_data.intensity }} intensity
+                    </div>
+                    {% endif %}
+                    {% if emotion_data.fallback_used %}
+                    <div style="font-size: 0.8rem; color: #ff6b6b; margin-top: 5px;">
+                        ⚠️ Using keyword-based analysis
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+		<!-- Chat Interface Section -->
+{% if persona %}
+<div class="chat-section" style="background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+    <div class="chat-header" style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e0e0e0;">
+        <div style="font-size: 2rem;">{{ persona.avatar }}</div>
+        <div>
+            <h3 style="margin: 0; color: #333;">Chat with {{ persona.name }}</h3>
+            <p style="margin: 5px 0 0 0; color: #666; font-size: 0.9rem;">Your personal AI therapist</p>
+            <div id="llama-status" style="font-size: 0.8rem; margin-top: 5px;">
+                {% if LLAMA_AVAILABLE %}
+                <span style="color: green;">🦙 Llama 3.2 Active</span>
+                {% else %}
+                <span style="color: orange;">⚠️ Using Fallback Mode</span>
+                {% endif %}
+            </div>
+        </div>
+        <div style="margin-left: auto;">
+            <button onclick="clearChatHistory()" style="background: #ff6b6b; color: white; border: none; padding: 8px 15px; border-radius: 10px; cursor: pointer; font-size: 0.8rem;">
+                🗑️ Clear Chat
+            </button>
+        </div>
+    </div>
+    
+    <div id="chat-messages" style="height: 300px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
+        <div class="welcome-message" style="text-align: center; color: #666; font-style: italic; padding: 20px;">
+            Hi! I'm {{ persona.name }}. How can I support you today? Feel free to share what's on your mind.
+        </div>
+    </div>
+    
+    <div class="chat-input-section" style="display: flex; gap: 10px;">
+        <input type="text" 
+               id="chat-input" 
+               placeholder="Type your message here..." 
+               style="flex-grow: 1; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 15px; font-size: 14px;"
+               onkeypress="handleChatKeyPress(event)">
+        <button onclick="sendChatMessage()" 
+                id="send-button"
+                style="padding: 12px 20px; background: linear-gradient(45deg, #667eea, #764ba2); color: white; border: none; border-radius: 15px; cursor: pointer; font-weight: bold;">
+            Send
+        </button>
+    </div>
+    
+    <div style="margin-top: 10px; font-size: 0.8rem; color: #666; text-align: center;">
+        Press Enter to send • Responses powered by AI
+    </div>
+</div>
+{% endif %}
+
+            <!-- Persona Greeting -->
+            {% if greeting %}
+            <div class="persona-greeting">
+                {{ greeting }}
+            </div>
+            {% endif %}
+
+            <!-- Quote Section -->
+            {% if quote %}
+            <div class="quote-section">
+                {{ quote }}
+                <br><small>- {{ persona.name }}</small>
+            </div>
+            {% endif %}
+
+            <!-- Conversation Starter -->
+            {% if conversation_starter %}
+            <div class="conversation-starter" onclick="startConversation()">
+                {{ conversation_starter }}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Content Grid -->
+        <div class="content-grid">
+            <!-- Enhanced Activities -->
+            {% if activities %}
+            <div class="content-card">
+                <h3>🎯 Personalized Activities</h3>
+                <ul class="activities-list">
+                    {% for activity in activities %}
+                    <li onclick="selectActivity(this)">{{ activity }}</li>
+                    {% endfor %}
+                </ul>
+                <button class="activity-btn" 
+                        onclick="getMoreActivities('{{ emotion_data.emotion if emotion_data else 'neutral' }}')">
+                    🎲 Get More Ideas
+                </button>
+            </div>
+            {% endif %}
+
+            <!-- Enhanced Emotion Spectrum -->
+            {% if emotion_data and emotion_data.all_emotions %}
+            <div class="content-card">
+                <h3>🎨 Your Emotional Spectrum</h3>
+                <p style="margin-bottom: 15px; color: #666;">
+                    Understanding the full range of your emotions:
+                </p>
+                <div class="emotion-spectrum">
+                    {% for emotion in emotion_data.all_emotions[:5] %}
+                    <div class="spectrum-item">
+                        <div class="spectrum-label">{{ emotion.label.title() }}</div>
+                        <div class="spectrum-bar">
+                            <div class="spectrum-fill" 
+                                 style="width: {{ (emotion.score * 100)|round }}%"></div>
+                        </div>
+                        <div class="spectrum-percentage">{{ "%.0f"|format(emotion.score * 100) }}%</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button class="activity-btn" onclick="showDetailedAnalysis()">
+                    🔍 Detailed Analysis
+                </button>
+            </div>
+            {% endif %}
+
+            <!-- Enhanced Music Section -->
+            {% if spotify_tracks %}
+            <div class="content-card">
+                <h3>🎵 Music for Your Mood</h3>
+                <p style="margin-bottom: 15px; color: #666;">
+                    Curated tracks that match your {{ emotion_data.emotion if emotion_data else 'current' }} mood:
+                </p>
+                {% for track_id in spotify_tracks[:3] %}
+                <iframe src="https://open.spotify.com/embed/track/{{ track_id }}?utm_source=generator&theme=0" 
+                        class="spotify-track" 
+                        frameborder="0" 
+                        allowfullscreen=""
+                        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                        loading="lazy">
+                </iframe>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Enhanced Game Section -->
+            {% if game_url %}
+            <div class="content-card">
+                <h3>🎮 Interactive Therapy Game</h3>
+                <div class="game-container">
+                    <p style="margin-bottom: 15px;">
+                        A therapeutic game designed specifically for your <strong>{{ emotion_data.emotion if emotion_data else 'current' }}</strong> state:
+                    </p>
+                    <a href="{{ game_url }}" class="game-btn" target="_blank">
+                        🎯 Start Playing
+                    </a>
+                    <p style="margin-top: 10px; font-size: 0.9rem; color: #666;">
+                        Games can help process emotions in a healthy, engaging way.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- AI Insights Card -->
+            <div class="content-card">
+                <h3>🤖 AI Insights</h3>
+                {% if emotion_data %}
+                <div style="margin-bottom: 15px;">
+                    <strong>Analysis Method:</strong> 
+                    {% if emotion_data.fallback_used %}
+                    Keyword-based detection
+                    {% else %}
+                    Advanced AI emotion recognition
+                    {% endif %}
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <strong>Confidence Level:</strong> 
+                    <span style="color: {% if emotion_data.confidence > 0.7 %}green{% elif emotion_data.confidence > 0.4 %}orange{% else %}red{% endif %};">
+                        {{ "%.0f"|format(emotion_data.confidence * 100) }}%
+                    </span>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <strong>Persona Match:</strong> {{ persona.name }} 
+                    <span style="font-size: 0.9rem; color: #666;">
+                        ({{ persona.personality }})
+                    </span>
+                </div>
+                {% else %}
+                <p style="color: #666;">Share your feelings to see detailed AI insights about your emotional state!</p>
+                {% endif %}
+                <button class="activity-btn" onclick="explainAnalysis()" style="margin-top: 15px;">
+                    📖 How This Works
+                </button>
+            </div>
+        </div>
+
+        <!-- Follow-up Suggestions Section -->
+        <div class="followup-suggestions" id="followup-suggestions">
+            <h3>💡 What's Next?</h3>
+            <div id="followup-content"></div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Floating Action Buttons -->
+    <div class="floating-buttons">
+        <button class="floating-btn history-btn" onclick="showHistory()" title="View Mood History">
+            📊
+        </button>
+        <button class="floating-btn analytics-btn" onclick="showAnalytics()" title="Analytics Dashboard">
+            📈
+        </button>
+        <button class="floating-btn compare-btn" onclick="showComparison()" title="Compare Emotions">
+            ⚖️
+        </button>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('historyModal')">&times;</span>
+            <h2>📊 Your Mood Journey</h2>
+            <div id="history-content">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading your mood history...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Modal -->
+    <div id="analyticsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('analyticsModal')">&times;</span>
+            <h2>📈 Analytics Dashboard</h2>
+            <div id="analytics-content">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Generating analytics...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparison Modal -->
+    <div id="comparisonModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('comparisonModal')">&times;</span>
+            <h2>⚖️ Emotion Comparison Tool</h2>
+            <div id="comparison-content">
+                <p style="margin-bottom: 20px;">Compare how different text inputs are analyzed for emotions:</p>
+                <div id="comparison-inputs">
+                    <div class="comparison-input">
+                        <input type="text" class="comparison-text" placeholder="Enter first text sample..." />
+                        <button class="add-comparison-btn" onclick="addComparisonInput()">+ Add</button>
+                    </div>
+                    <div class="comparison-input">
+                        <input type="text" class="comparison-text" placeholder="Enter second text sample..." />
+                    </div>
+                </div>
+                <button class="activity-btn" onclick="runComparison()" style="margin: 20px 0;">
+                    🔍 Compare Emotions
+                </button>
+                <div id="comparison-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Persona Details Modal -->
+    <div id="personaModal" class="persona-modal">
+        <div class="persona-modal-content">
+            <span class="close-modal" onclick="closeModal('personaModal')">&times;</span>
+            <h2 id="persona-modal-title">Persona Details</h2>
+            <div id="persona-modal-content">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading persona details...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Status Modal -->
+    <div id="systemStatusModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('systemStatusModal')">&times;</span>
+            <h2>🛠️ System Status</h2>
+            <div id="system-status-content">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Checking system status...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let realtimePreview = false;
+        let typingTimer;
+        const typingInterval = 1000; // 1 second delay
+	let currentEmotion = '{{ emotion_data.emotion if emotion_data else "neutral" }}';
+let chatHistory = [];
+
+// Load chat history on page load
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('chat-messages')) {
+        loadChatHistory();
+    }
+});
+
+function handleChatKeyPress(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendChatMessage();
+    }
+}
+
+function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    // Clear input and disable send button
+    input.value = '';
+    const sendButton = document.getElementById('send-button');
+    sendButton.disabled = true;
+    sendButton.textContent = 'Thinking...';
+    
+    // Add user message to chat
+    addMessageToChat(message, 'user');
+    
+    // Send to backend
+    fetch('/chat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            message: message,
+            emotion: currentEmotion
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            addMessageToChat('Sorry, I encountered an error. Please try again.', 'therapist');
+        } else {
+            addMessageToChat(data.response, 'therapist', data.persona, data.llama_generated, data.response_time);
+        }
+    })
+    .catch(error => {
+        console.error('Chat error:', error);
+        addMessageToChat('Sorry, I encountered an error. Please try again.', 'therapist');
+    })
+    .finally(() => {
+        // Re-enable send button
+        sendButton.disabled = false;
+        sendButton.textContent = 'Send';
+        input.focus();
+    });
+}
+
+function addMessageToChat(message, sender, persona = null, llamaGenerated = false, responseTime = null) {
+    const chatMessages = document.getElementById('chat-messages');
+    const messageDiv = document.createElement('div');
+    
+    const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    
+    if (sender === 'user') {
+        messageDiv.innerHTML = `
+            <div style="display: flex; justify-content: flex-end; margin: 10px 0;">
+                <div style="background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 12px 16px; border-radius: 18px 18px 4px 18px; max-width: 70%; word-wrap: break-word;">
+                    ${message}
+                    <div style="font-size: 0.7rem; opacity: 0.8; margin-top: 5px; text-align: right;">
+                        ${timestamp}
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        const statusInfo = llamaGenerated ? 
+            `<span style="color: green;">🦙 Llama</span> (${responseTime}s)` : 
+            `<span style="color: orange;">⚡ Quick</span>`;
+            
+        messageDiv.innerHTML = `
+            <div style="display: flex; justify-content: flex-start; margin: 10px 0;">
+                <div style="background: white; border: 1px solid #e0e0e0; padding: 12px 16px; border-radius: 18px 18px 18px 4px; max-width: 70%; word-wrap: break-word; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    ${persona ? `<div style="font-size: 0.8rem; color: #667eea; margin-bottom: 5px;">${persona.avatar} ${persona.name}</div>` : ''}
+                    ${message}
+                    <div style="font-size: 0.7rem; color: #666; margin-top: 5px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>${timestamp}</span>
+                        <span>${statusInfo}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    chatMessages.appendChild(messageDiv);
+    
+    // Remove welcome message if it exists
+    const welcomeMessage = chatMessages.querySelector('.welcome-message');
+    if (welcomeMessage) {
+        welcomeMessage.remove();
+    }
+    
+    // Scroll to bottom
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function loadChatHistory() {
+    fetch('/chat/history')
+        .then(response => response.json())
+        .then(data => {
+            if (data.history && data.history.length > 0) {
+                const chatMessages = document.getElementById('chat-messages');
+                chatMessages.innerHTML = ''; // Clear welcome message
+                
+                data.history.forEach(msg => {
+                    addMessageToChat(msg.message, 'user');
+                    addMessageToChat(
+                        msg.response, 
+                        'therapist', 
+                        {avatar: '🎭', name: msg.persona}, 
+                        msg.llama_generated,
+                        msg.response_time
+                    );
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading chat history:', error);
+        });
+}
+
+function clearChatHistory() {
+    if (confirm('Clear your chat history with the therapist?')) {
+        fetch('/chat/clear')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('chat-messages').innerHTML = `
+                    <div class="welcome-message" style="text-align: center; color: #666; font-style: italic; padding: 20px;">
+                        Chat history cleared. How can I help you today?
+                    </div>
+                `;
+                showNotification('Chat history cleared', 'success');
+            })
+            .catch(error => {
+                console.error('Error clearing chat:', error);
+                showNotification('Error clearing chat history', 'error');
+            });
+    }
+}
+
+// Update current emotion when new analysis is done
+function updateChatEmotion(newEmotion) {
+    currentEmotion = newEmotion;
+}
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            setupAnimations();
+            {% if persona %}
+            setTimeout(() => {
+                typeWriterEffect('.persona-greeting', 50);
+            }, 500);
+            {% endif %}
+        });
+
+        function setupEventListeners() {
+            // Auto-resize textarea
+            const textarea = document.getElementById('user_input');
+            if (textarea) {
+                textarea.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = (this.scrollHeight) + 'px';
+                });
+            }
+
+            // Close modals when clicking outside
+            window.onclick = function(event) {
+                const modals = document.querySelectorAll('.modal, .persona-modal');
+                modals.forEach(modal => {
+                    if (event.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            }
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey || e.metaKey) {
+                    switch(e.key) {
+                        case 'h':
+                            e.preventDefault();
+                            showHistory();
+                            break;
+                        case 'a':
+                            e.preventDefault();
+                            showAnalytics();
+                            break;
+                        case 'c':
+                            e.preventDefault();
+                            showComparison();
+                            break;
+                    }
+                }
+            });
+        }
+
+        function setupAnimations() {
+            // Add hover effects to cards
+            const cards = document.querySelectorAll('.content-card');
+            cards.forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-5px)';
+                    this.style.transition = 'transform 0.3s ease';
+                });
+                
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
+
+            // Animate emotion spectrum bars
+            const spectrumFills = document.querySelectorAll('.spectrum-fill, .confidence-fill');
+            spectrumFills.forEach(fill => {
+                const width = fill.style.width;
+                fill.style.width = '0%';
+                setTimeout(() => {
+                    fill.style.width = width;
+                }, 100);
+            });
+        }
+
+        // Form submission handling
+        function handleSubmit(event) {
+            showLoading();
+            // Let the form submit normally
+        }
+
+        function showLoading() {
+            document.querySelector('.input-form').style.display = 'none';
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('submit-btn').disabled = true;
+        }
+
+        function hideLoading() {
+            document.querySelector('.input-form').style.display = 'flex';
+            document.getElementById('loading').classList.remove('show');
+            document.getElementById('submit-btn').disabled = false;
+        }
+
+        // Real-time emotion preview
+        function handleTextInput(textarea) {
+            if (realtimePreview) {
+                clearTimeout(typingTimer);
+                typingTimer = setTimeout(() => {
+                    previewEmotion(textarea.value);
+                }, typingInterval);
+            }
+        }
+
+        function toggleRealtimePreview() {
+            realtimePreview = !realtimePreview;
+            const preview = document.getElementById('emotion-preview');
+            if (realtimePreview) {
+                preview.style.display = 'block';
+                preview.innerHTML = '<span id="preview-text">Real-time preview enabled - start typing...</span>';
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+
+        function previewEmotion(text) {
+            if (!text || text.length < 5) return;
+            
+            fetch('/compare', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    texts: [text]
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.comparisons && data.comparisons.length > 0) {
+                    const result = data.comparisons[0];
+                    document.getElementById('preview-text').innerHTML = 
+                        `Preview: <strong>${result.emotion}</strong> (${result.confidence}%) - ${result.persona_name}`;
+                }
+            })
+            .catch(error => {
+                console.error('Preview error:', error);
+            });
+        }
+
+        // Activity interactions
+        function selectActivity(element) {
+            // Remove previous selections
+            document.querySelectorAll('.activities-list li').forEach(li => {
+                li.style.background = '#f8f9fa';
+                li.style.borderLeftColor = 'transparent';
+            });
+            
+            // Highlight selected activity
+            element.style.background = '#e3f2fd';
+            element.style.borderLeftColor = '#2196F3';
+            
+            // Could track activity selection here
+            console.log('Selected activity:', element.textContent);
+        }
+
+        function getMoreActivities(emotion) {
+            fetch(`/followup/${emotion}`)
+                .then(response => response.json())
+                .then(data => {
+                    showFollowupSuggestions(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching follow-up suggestions:', error);
+                    showNotification('Error getting suggestions. Please try again.', 'error');
+                });
+        }
+
+        function showFollowupSuggestions(data) {
+            const followupDiv = document.getElementById('followup-suggestions');
+            const contentDiv = document.getElementById('followup-content');
+            
+            contentDiv.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #667eea; margin-bottom: 15px;">🎯 Try These Activities:</h4>
+                    <div style="display: grid; gap: 10px;">
+                        ${data.activities.map(activity => 
+                            `<div style="padding: 12px 15px; background: #f0f7ff; border-radius: 8px; border-left: 4px solid #667eea; cursor: pointer;" 
+                                  onclick="selectActivity(this)">
+                                ${activity}
+                            </div>`
+                        ).join('')}
+                    </div>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #e3f2fd, #f8f9fa); padding: 20px; border-radius: 12px; margin: 20px 0;">
+                    <h4 style="color: #1976d2; margin-bottom: 10px;">💭 Reflection Prompt:</h4>
+                    <p style="font-size: 1.1rem; font-style: italic;">${data.conversation_starter}</p>
+                </div>
+                
+                <div style="background: rgba(102, 126, 234, 0.1); padding: 15px; border-radius: 10px; margin: 15px 0;">
+                    <strong>💡 ${data.intensity_tip || 'Personalized tip for your current state.'}</strong>
+                </div>
+                
+                <div style="font-style: italic; color: #666; margin-top: 15px;">
+                    ${data.persona_response}
+                </div>
+            `;
+            
+            followupDiv.classList.add('show');
+            followupDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Conversation starter interaction
+        function startConversation() {
+            const textarea = document.getElementById('user_input');
+            const starter = event.target.textContent;
+            textarea.value = `I'd like to talk about this: ${starter}\n\n`;
+            textarea.focus();
+            textarea.style.height = 'auto';
+            textarea.style.height = (textarea.scrollHeight) + 'px';
+            
+            // Smooth scroll to input
+            textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // Persona details
+        function showPersonaDetails(emotion) {
+            const modal = document.getElementById('personaModal');
+            const content = document.getElementById('persona-modal-content');
+            
+            modal.style.display = 'block';
+            
+            fetch(`/persona/${emotion}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('persona-modal-title').textContent = `${data.avatar} ${data.name} - Detailed Profile`;
+                    
+                    content.innerHTML = `
+                        <div style="text-align: center; margin-bottom: 25px;">
+                            <div style="font-size: 4rem; margin-bottom: 10px;">${data.avatar}</div>
+                            <h3 style="color: #333; margin-bottom: 5px;">${data.name}</h3>
+                            <p style="color: #666; font-style: italic;">${data.personality}</p>
+                            <p style="margin-top: 10px; color: #555;">${data.specializes_in}</p>
+                        </div>
+                        
+                        <div style="margin-bottom: 25px;">
+                            <h4 style="color: #667eea; margin-bottom: 15px;">🎭 Personality Traits</h4>
+                            <div class="personality-traits">
+                                ${data.personality_traits.map(trait => 
+                                    `<span class="trait-tag">${trait}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 25px;">
+                            <h4 style="color: #667eea; margin-bottom: 15px;">💎 Core Values</h4>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                ${data.core_values.map(value => 
+                                    `<span style="background: #f0f7ff; color: #1976d2; padding: 6px 12px; border-radius: 12px; font-size: 0.9rem;">${value}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 25px;">
+                            <h4 style="color: #667eea; margin-bottom: 15px;">📊 Intensity Levels</h4>
+                            ${Object.entries(data.intensity_levels).map(([level, description]) => 
+                                `<div style="margin: 8px 0; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                                    <strong style="text-transform: capitalize;">${level}:</strong> ${description}
+                                </div>`
+                            ).join('')}
+                        </div>
+                        
+                        <div style="margin-bottom: 25px;">
+                            <h4 style="color: #667eea; margin-bottom: 15px;">💬 Communication Style</h4>
+                            <ul style="list-style: none; padding: 0;">
+                                ${data.conversation_style.map(style => 
+                                    `<li style="margin: 8px 0; padding: 8px 12px; background: #f0f7ff; border-radius: 6px;">• ${style}</li>`
+                                ).join('')}
+                            </ul>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <h4 style="color: #667eea; margin-bottom: 15px;">✨ Sample Quotes</h4>
+                            <div style="display: grid; gap: 10px;">
+                                ${data.sample_quotes.slice(0, 3).map(quote => 
+                                    `<div style="padding: 12px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-left: 4px solid #667eea; border-radius: 6px; font-style: italic;">
+                                        "${quote}"
+                                    </div>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    console.error('Error fetching persona details:', error);
+                    content.innerHTML = '<p style="color: #ff6b6b;">Error loading persona details. Please try again.</p>';
+                });
+        }
+
+        // History functionality
+        function showHistory() {
+            const modal = document.getElementById('historyModal');
+            const content = document.getElementById('history-content');
+            
+            modal.style.display = 'block';
+            content.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading your mood history...</p>
+                </div>
+            `;
+            
+            fetch('/history')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.history && data.history.length === 0) {
+                        content.innerHTML = `
+                            <div style="text-align: center; padding: 40px;">
+                                <div style="font-size: 3rem; margin-bottom: 15px;">📝</div>
+                                <h3>No mood entries yet</h3>
+                                <p style="color: #666; margin: 15px 0;">Start by sharing how you feel to build your mood journey!</p>
+                                <button class="activity-btn" onclick="closeModal('historyModal')">Start Now</button>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    let historyHtml = '';
+                    
+                    // Add analytics overview
+                    if (data.analytics) {
+                        historyHtml += `
+                            <div class="analytics-overview" style="margin-bottom: 30px;">
+                                <div class="analytics-stat">
+                                    <div class="stat-value">${data.analytics.total_entries}</div>
+                                    <div class="stat-label">Total Entries</div>
+                                </div>
+                                <div class="analytics-stat">
+                                    <div class="stat-value">${data.analytics.average_confidence}%</div>
+                                    <div class="stat-label">Avg Confidence</div>
+                                </div>
+                                <div class="analytics-stat">
+                                    <div class="stat-value">${data.analytics.most_common_emotion}</div>
+                                    <div class="stat-label">Most Common</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Add history entries
+                    historyHtml += data.history.map(entry => `
+                        <div class="history-entry">
+                            <div class="history-header">
+                                <div class="history-emotion">${entry.emotion.charAt(0).toUpperCase() + entry.emotion.slice(1)}</div>
+                                <div class="history-timestamp">${entry.timestamp}</div>
+                            </div>
+                            <div class="history-details">
+                                <div class="history-confidence">Confidence: ${entry.confidence}%</div>
+                                <div class="history-intensity">Intensity: ${entry.intensity || 'moderate'}</div>
+                                <div class="history-persona">Guided by: ${entry.persona || 'Unknown'}</div>
+                                ${entry.fallback_used ? '<div style="color: #ff6b6b; font-size: 0.8rem;">⚠️ Keyword Analysis</div>' : ''}
+                            </div>
+                            ${entry.all_emotions && entry.all_emotions.length > 1 ? `
+                                <div style="margin-top: 10px; font-size: 0.9rem;">
+                                    <strong>Emotion Mix:</strong> 
+                                    ${entry.all_emotions.slice(0, 3).map(e => 
+                                        `${e.label} (${Math.round(e.score * 100)}%)`
+                                    ).join(', ')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('');
+                    
+                    content.innerHTML = historyHtml;
+                })
+                .catch(error => {
+                    console.error('Error fetching history:', error);
+                    content.innerHTML = '<p style="color: #ff6b6b;">Error loading mood history. Please try again.</p>';
+                });
+        }
+
+        // Analytics functionality
+        function showAnalytics() {
+            const modal = document.getElementById('analyticsModal');
+            const content = document.getElementById('analytics-content');
+            
+            modal.style.display = 'block';
+            content.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Generating your analytics...</p>
+                </div>
+            `;
+            
+            fetch('/analytics')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        content.innerHTML = `
+                            <div style="text-align: center; padding: 40px;">
+                                <div style="font-size: 3rem; margin-bottom: 15px;">📊</div>
+                                <h3>No data available yet</h3>
+                                <p style="color: #666; margin: 15px 0;">Share your emotions to start building analytics insights!</p>
+                                <button class="activity-btn" onclick="closeModal('analyticsModal')">Get Started</button>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    content.innerHTML = `
+                        <div class="analytics-overview">
+                            <div class="analytics-stat">
+                                <div class="stat-value">${data.overview.total_entries}</div>
+                                <div class="stat-label">Total Entries</div>
+                            </div>
+                            <div class="analytics-stat">
+                                <div class="stat-value">${data.overview.average_confidence}%</div>
+                                <div class="stat-label">Avg Confidence</div>
+                            </div>
+                            <div class="analytics-stat">
+                                <div class="stat-value">${data.fallback_usage.ai_analysis}</div>
+                                <div class="stat-label">AI Analyses</div>
+                            </div>
+                            <div class="analytics-stat">
+                                <div class="stat-value">${data.fallback_usage.keyword_analysis}</div>
+                                <div class="stat-label">Keyword Analyses</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin: 30px 0;">
+                            <h3 style="color: #667eea; margin-bottom: 15px;">📊 Emotion Distribution</h3>
+                            <div style="display: grid; gap: 10px;">
+                                ${Object.entries(data.emotion_breakdown).map(([emotion, count]) => `
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <div style="min-width: 80px; font-weight: bold; text-transform: capitalize;">${emotion}</div>
+                                        <div style="flex-grow: 1; height: 20px; background: #e0e0e0; border-radius: 10px; overflow: hidden;">
+                                            <div style="height: 100%; background: linear-gradient(45deg, #667eea, #764ba2); width: ${(count / Math.max(...Object.values(data.emotion_breakdown)) * 100)}%; border-radius: 10px;"></div>
+                                        </div>
+                                        <div style="min-width: 40px; text-align: right; font-weight: bold;">${count}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div style="margin: 30px 0;">
+                            <h3 style="color: #667eea; margin-bottom: 15px;">🎭 Persona Interactions</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                                ${Object.entries(data.persona_interactions).map(([persona, count]) => `
+                                    <div style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); padding: 15px; border-radius: 10px; text-align: center;">
+                                        <div style="font-size: 2rem; margin-bottom: 5px;">🎭</div>
+                                        <div style="font-weight: bold;">${persona}</div>
+                                        <div style="color: #666;">${count} interactions</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div style="margin: 30px 0;">
+                            <h3 style="color: #667eea; margin-bottom: 15px;">⚡ Intensity Patterns</h3>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                                ${Object.entries(data.intensity_patterns).map(([intensity, count]) => `
+                                    <div style="background: ${intensity === 'high' ? '#ffebee' : intensity === 'moderate' ? '#fff3e0' : '#e8f5e8'}; padding: 15px; border-radius: 10px; text-align: center;">
+                                        <div style="font-size: 1.5rem; margin-bottom: 5px;">${intensity === 'high' ? '🔥' : intensity === 'moderate' ? '⚡' : '🌱'}</div>
+                                        <div style="font-weight: bold; text-transform: capitalize;">${intensity}</div>
+                                        <div style="color: #666;">${count} times</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div style="margin: 30px 0;">
+                            <h3 style="color: #667eea; margin-bottom: 15px;">📈 Confidence Trends</h3>
+                            <div style="font-size: 0.9rem; color: #666; margin-bottom: 10px;">Last 10 entries</div>
+                            <div style="display: grid; gap: 8px;">
+                                ${data.confidence_trends.map(entry => `
+                                    <div style="display: flex; align-items: center; gap: 15px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
+                                        <div style="min-width: 80px; font-size: 0.8rem;">${entry.timestamp}</div>
+                                        <div style="flex-grow: 1; height: 10px; background: #e0e0e0; border-radius: 5px; overflow: hidden;">
+                                            <div style="height: 100%; background: linear-gradient(45deg, #667eea, #764ba2); width: ${entry.confidence}%; border-radius: 5px;"></div>
+                                        </div>
+                                        <div style="min-width: 60px; text-align: right; font-weight: bold;">${entry.confidence}%</div>
+                                        <div style="min-width: 80px; text-align: right; color: #666; text-transform: capitalize;">${entry.emotion}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div style="background: linear-gradient(135deg, #e3f2fd, #f8f9fa); padding: 20px; border-radius: 12px; margin: 20px 0;">
+                            <h4 style="color: #1976d2; margin-bottom: 10px;">🎯 Summary Insights</h4>
+                            <p><strong>Date Range:</strong> ${data.overview.date_range.first_entry} to ${data.overview.date_range.latest_entry}</p>
+                            <p><strong>Analysis Quality:</strong> ${Math.round((data.fallback_usage.ai_analysis / data.overview.total_entries) * 100)}% AI-powered</p>
+                            <p><strong>Most Active Persona:</strong> ${Object.entries(data.persona_interactions).sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A'}</p>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    console.error('Error fetching analytics:', error);
+                    content.innerHTML = '<p style="color: #ff6b6b;">Error loading analytics. Please try again.</p>';
+                });
+        }
+
+        // Comparison functionality
+        function showComparison() {
+            const modal = document.getElementById('comparisonModal');
+            modal.style.display = 'block';
+            
+            // Reset comparison inputs
+            const inputs = document.querySelectorAll('.comparison-text');
+            inputs.forEach(input => input.value = '');
+            document.getElementById('comparison-results').innerHTML = '';
+        }
+
+        function addComparisonInput() {
+            const container = document.getElementById('comparison-inputs');
+            const inputDiv = document.createElement('div');
+            inputDiv.className = 'comparison-input';
+            inputDiv.innerHTML = `
+                <input type="text" class="comparison-text" placeholder="Enter another text sample..." />
+                <button class="add-comparison-btn" onclick="removeComparisonInput(this)">Remove</button>
+            `;
+            container.appendChild(inputDiv);
+        }
+
+        function removeComparisonInput(button) {
+            button.parentElement.remove();
+        }
+
+        function runComparison() {
+            const inputs = document.querySelectorAll('.comparison-text');
+            const texts = Array.from(inputs).map(input => input.value.trim()).filter(text => text.length > 0);
+            
+            if (texts.length < 2) {
+                showNotification('Please provide at least 2 text samples to compare.', 'warning');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('comparison-results');
+            resultsDiv.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Comparing emotions...</p>
+                </div>
+            `;
+            
+            fetch('/compare', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ texts: texts })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    resultsDiv.innerHTML = `<p style="color: #ff6b6b;">Error: ${data.error}</p>`;
+                    return;
+                }
+                
+                resultsDiv.innerHTML = `
+                    <h3 style="color: #667eea; margin: 20px 0 15px;">📊 Comparison Results</h3>
+                    <div class="comparison-results">
+                        ${data.comparisons.map((result, index) => `
+                            <div class="comparison-result">
+                                <div style="font-weight: bold; margin-bottom: 10px;">Sample ${index + 1}</div>
+                                <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem;">
+                                    "${result.text}"
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 10px; margin: 8px 0;">
+                                    <div style="font-size: 1.5rem;">${result.persona_avatar}</div>
+                                    <div>
+                                        <div><strong>${result.emotion.charAt(0).toUpperCase() + result.emotion.slice(1)}</strong></div>
+                                        <div style="font-size: 0.9rem; color: #666;">${result.persona_name}</div>
+                                    </div>
+                                </div>
+                                <div style="margin: 8px 0;">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span style="font-size: 0.9rem;">Confidence:</span>
+                                        <div style="flex-grow: 1; height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden;">
+                                            <div style="height: 100%; background: linear-gradient(45deg, #667eea, #764ba2); width: ${result.confidence}%; border-radius: 4px;"></div>
+                                        </div>
+                                        <span style="font-weight: bold; font-size: 0.9rem;">${result.confidence}%</span>
+                                    </div>
+                                </div>
+                                <div style="font-size: 0.8rem; color: #666; margin-top: 5px;">
+                                    Intensity: <strong>${result.intensity}</strong>
+                                    ${result.fallback_used ? ' • <span style="color: #ff6b6b;">Keyword Analysis</span>' : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            })
+            .catch(error => {
+                console.error('Error running comparison:', error);
+                resultsDiv.innerHTML = '<p style="color: #ff6b6b;">Error running comparison. Please try again.</p>';
+            });
+        }
+
+        // System status
+        function showSystemStatus() {
+            const modal = document.getElementById('systemStatusModal');
+            const content = document.getElementById('system-status-content');
+            
+            modal.style.display = 'block';
+            content.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Checking system status...</p>
+                </div>
+            `;
+            
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    content.innerHTML = `
+                        <div class="analytics-overview">
+                            <div class="analytics-stat" style="background: ${data.emotion_classifier.status === 'active' ? 'linear-gradient(135deg, #4caf50, #45a049)' : 'linear-gradient(135deg, #ff9800, #f57c00)'};">
+                                <div class="stat-value">${data.emotion_classifier.status === 'active' ? '✅' : '⚠️'}</div>
+                                <div class="stat-label">AI Status</div>
+                            </div>
+                            <div class="analytics-stat">
+                                <div class="stat-value">${data.personas.count}</div>
+                                <div class="stat-label">Personas</div>
+                            </div>
+                            <div class="analytics-stat">
+                                <div class="stat-value">${data.database.total_entries}</div>
+                                <div class="stat-label">Total Entries</div>
+                            </div>
+                            <div class="analytics-stat">
+                                <div class="stat-value">${data.quotes.total_quotes}</div>
+                                <div class="stat-label">Total Quotes</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin: 30px 0;">
+                            <h3 style="color: #667eea; margin-bottom: 15px;">🤖 Emotion Classifier</h3>
+                            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
+                                <p><strong>Status:</strong> <span style="color: ${data.emotion_classifier.status === 'active' ? 'green' : 'orange'};">${data.emotion_classifier.status.toUpperCase()}</span></p>
+                                <p><strong>Model:</strong> ${data.emotion_classifier.model}</p>
+                                <p><strong>Fallback Mode:</strong> ${data.emotion_classifier.fallback_mode ? 'Enabled' : 'Disabled'}</p>
+                            </div>
+                        </div>
+                        
+                        <div style="margin: 30px 0;">
+                            <h3 style="color: #667eea; margin-bottom: 15px;">🎭 Available Personas</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 15px;">
+                                ${data.personas.available.map(persona => `
+                                    <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center; cursor: pointer;" onclick="showPersonaDetails('${persona}')">
+                                        <div style="font-size: 2rem; margin-bottom: 5px;">🎭</div>
+                                        <div style="font-weight: bold; text-transform: capitalize;">${persona}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div style="margin: 30px 0;">
+                            <h3 style="color: #667eea; margin-bottom: 15px;">💾 Database</h3>
+                            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
+                                <p><strong>Status:</strong> <span style="color: green;">CONNECTED</span></p>
+                                <p><strong>Total Users:</strong> ${data.database.total_users}</p>
+                                <p><strong>Total Entries:</strong> ${data.database.total_entries}</p>
+                            </div>
+                        </div>
+                        
+                        <div style="margin: 30px 0;">
+                            <h3 style="color: #667eea; margin-bottom: 15px;">📖 Quotes System</h3>
+                            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
+                                <p><strong>Source:</strong> ${data.quotes.source}</p>
+                                <p><strong>Emotions Covered:</strong> ${data.quotes.emotions_covered.join(', ')}</p>
+                                <p><strong>Total Quotes:</strong> ${data.quotes.total_quotes}</p>
+                            </div>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    console.error('Error fetching system status:', error);
+                    content.innerHTML = '<p style="color: #ff6b6b;">Error loading system status. Please try again.</p>';
+                });
+        }
+
+        // Demo controls
+        function resetDemo() {
+            if (confirm('This will clear all demo data. Continue?')) {
+                fetch('/demo/reset')
+                    .then(response => response.json())
+                    .then(data => {
+                        showNotification(data.message, 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    })
+                    .catch(error => {
+                        console.error('Error resetting demo:', error);
+                        showNotification('Error resetting demo', 'error');
+                    });
+            }
+        }
+
+        function generateSampleData() {
+            fetch('/demo/sample-data')
+                .then(response => response.json())
+                .then(data => {
+                    showNotification(`Generated ${data.entries.length} sample entries!`, 'success');
+                    console.log('Sample data generated:', data.entries);
+                })
+                .catch(error => {
+                    console.error('Error generating sample data:', error);
+                    showNotification('Error generating sample data', 'error');
+                });
+        }
+
+        // Additional functionality
+        function showDetailedAnalysis() {
+            {% if emotion_data %}
+            const analysisText = `
+                Your detailed emotion analysis shows:
+                
+                Primary Emotion: {{ emotion_data.emotion.title() }} ({{ "%.1f"|format(emotion_data.confidence * 100) }}% confidence)
+                Intensity Level: {{ emotion_data.intensity or 'moderate' }}
+                Analysis Method: {% if emotion_data.fallback_used %}Keyword-based detection{% else %}AI-powered recognition{% endif %}
+                
+                Full Emotion Spectrum:
+                {% for emotion in emotion_data.all_emotions[:3] %}
+                - {{ emotion.label.title() }}: {{ "%.1f"|format(emotion.score * 100) }}%{% endfor %}
+                
+                This analysis helped match you with {{ persona.name }}, who specializes in {{ persona.personality }} support.
+            `;
+            
+            showNotification(analysisText, 'info', 8000);
+            {% else %}
+            showNotification('No analysis data available. Please share your emotions first!', 'warning');
+            {% endif %}
+        }
+
+        function explainAnalysis() {
+            const explanationText = `
+                🤖 How MoodMate's Emotion Analysis Works:
+                
+                1. **AI Processing**: We use advanced natural language processing to analyze your text
+                2. **Emotion Detection**: The system identifies 7 core emotions with confidence scores
+                3. **Intensity Analysis**: We detect how strongly you're feeling each emotion
+                4. **Persona Matching**: Based on your primary emotion, we select the most suitable AI companion
+                5. **Personalized Response**: Each persona provides unique support tailored to their personality
+                
+                Our system includes a robust fallback mechanism that uses keyword analysis when the AI model isn't available, ensuring you always receive support.
+            `;
+            
+            showNotification(explanationText, 'info', 10000);
+        }
+
+        // Utility functions
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function showNotification(message, type = 'info', duration = 3000) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                max-width: 400px;
+                padding: 15px 20px;
+                border-radius: 10px;
+                color: white;
+                font-weight: bold;
+                z-index: 10000;
+                animation: slideInRight 0.3s ease;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            `;
+            
+            const colors = {
+                'success': '#4caf50',
+                'error': '#ff6b6b',
+                'warning': '#ff9800',
+                'info': '#2196F3'
+            };
+            
+            notification.style.background = colors[type] || colors.info;
+            notification.innerHTML = message.replace(/\n/g, '<br>');
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, duration);
+        }
+
+        function typeWriterEffect(selector, speed = 50) {
+            const element = document.querySelector(selector);
+            if (!element) return;
+            
+            const text = element.textContent;
+            element.textContent = '';
+            let i = 0;
+            
+            function typeWriter() {
+                if (i < text.length) {
+                    element.textContent += text.charAt(i);
+                    i++;
+                    setTimeout(typeWriter, speed);
+                }
+            }
+            
+            typeWriter();
+        }
+
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInRight {
+                from {
+                    opacity: 0;
+                    transform: translateX(100px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateX(0);
+                }
+            }
+            
+            @keyframes slideOutRight {
+                from {
+                    opacity: 1;
+                    transform: translateX(0);
+                }
+                to {
+                    opacity: 0;
+                    transform: translateX(100px);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Accessibility improvements
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const openModals = document.querySelectorAll('.modal[style*="block"], .persona-modal[style*="block"]');
+                openModals.forEach(modal => {
+                    modal.style.display = 'none';
+                });
+            }
+        });
+
+        // Performance optimization
+        let isScrolling = false;
+        window.addEventListener('scroll', function() {
+            if (!isScrolling) {
+                window.requestAnimationFrame(function() {
+                    // Add scroll-based optimizations here if needed
+                    isScrolling = false;
+                });
+            }
+            isScrolling = true;
+        });
+    </script>
+</body>
+</html>
