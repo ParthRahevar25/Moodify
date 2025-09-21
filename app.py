@@ -1,5 +1,7 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 from transformers import pipeline
 import os
 import random
@@ -9,9 +11,7 @@ from datetime import datetime, timedelta
 import uuid
 import logging
 import subprocess
-import threading
 import time
-
 # 🦙 Llama 3.2 Integration Configuration
 LLAMA_MODEL = "llama3.2"  # Adjust based on your Ollama model name
 LLAMA_AVAILABLE = False
@@ -76,18 +76,20 @@ Keep response under 150 words and maintain a warm, supportive tone."""
         return None
     
 app = Flask(__name__)
-
-# 🔒 Secure configuration
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'change-this-secret-key')
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'a-very-secret-key-that-you-should-change')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///mood_app.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# Initialize database
 db = SQLAlchemy(app)
-
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+# Initialize database
+# db = SQLAlchemy(app)
+
+# Set up logging
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
 
 # 📖 Load quotes from external JSON file
 def load_quotes():
@@ -138,9 +140,17 @@ def initialize_emotion_classifier():
 # 📊 Database Models
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.String(100), unique=True, nullable=False)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     mood_entries = db.relationship('MoodEntry', backref='user', lazy=True)
+    chat_messages = db.relationship('ChatMessage', backref='user', lazy=True)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 class MoodEntry(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -150,10 +160,10 @@ class MoodEntry(db.Model):
     text_input = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     persona_used = db.Column(db.String(50))
-    all_emotions_data = db.Column(db.Text)  # Store JSON of all emotion scores
+    all_emotions_data = db.Column(db.Text)
     fallback_used = db.Column(db.Boolean, default=False)
-    emotion_intensity = db.Column(db.String(20))  # mild, moderate, high
-    
+    emotion_intensity = db.Column(db.String(20))
+
 class ChatMessage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -163,7 +173,7 @@ class ChatMessage(db.Model):
     emotion_context = db.Column(db.String(50))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     llama_generated = db.Column(db.Boolean, default=False)
-    response_time = db.Column(db.Float)  # Track response generation time
+    response_time = db.Column(db.Float)
 
 # 🔤 Fallback emotion detection using keyword matching
 EMOTION_KEYWORDS = {
@@ -826,94 +836,184 @@ def get_time_based_activities(activities, current_hour):
         return [f"This afternoon: {activity.lower()}" for activity in activities[2:5]]
     else:  # Evening
         return [f"This evening: {activity.lower()}" for activity in activities[-3:]]
+    
+# --- Authentication Decorator ---
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Please log in to access this page.', 'warning')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# --- Authentication Routes ---
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            session['user_id'] = user.id
+            session['username'] = user.username
+            flash('Logged in successfully!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid username or password.', 'error')
+    return render_template('login.html')
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists. Please choose another.', 'error')
+            return redirect(url_for('signup'))
+        new_user = User(username=username)
+        new_user.set_password(password)
+        db.session.add(new_user)
+        db.session.commit()
+        flash('Account created! You can now log in.', 'success')
+        return redirect(url_for('login'))
+    return render_template('login.html', is_signup=True)
+
+@app.route('/logout')
+@login_required
+def logout():
+    session.clear()
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('login'))
+
+# --- Main Application Route ---
+@app.route('/', methods=['GET', 'POST'])
+@login_required
+def index():
+    user = User.query.get(session['user_id'])
+    
+    emotion_data, persona, error_message = None, None, None
+    
+    if request.method == 'POST':
+        user_input = request.form.get('user_input', '').strip()
+        if len(user_input) < 3:
+            error_message = "Please share a bit more about your feelings."
+        else:
+            try:
+                emotion_data = analyze_emotion_with_confidence(user_input)
+                emotion = emotion_data['emotion']
+                persona = MOOD_PERSONAS.get(emotion, MOOD_PERSONAS['neutral'])
+                save_mood_entry(user, emotion_data, user_input, persona['name'])
+            except Exception as e:
+                logger.error(f"Error processing mood analysis: {e}")
+                error_message = "An error occurred during analysis. Please try again."
+
+    greeting, quote, spotify_tracks, game_url, activities, conversation_starter = (None, None, [], None, [], None)
+    if persona and emotion_data:
+        greeting = random.choice(persona.get('greeting_variations', ["Hello!"]))
+        quote = random.choice(QUOTES_DATA.get(emotion_data.get('emotion'), ["Keep going."]))
+        spotify_tracks = emotion_to_spotify.get(emotion_data.get('emotion'), [])
+        game_url = emotion_to_game.get(emotion_data.get('emotion'))
+        activities = persona.get('activities', [])
+        conversation_starter = random.choice(persona.get('conversation_starters', ["How are you today?"]))
+
+    return render_template('eample.html',
+                           emotion_data=emotion_data, persona=persona, quote=quote,
+                           greeting=greeting, spotify_tracks=spotify_tracks,
+                           game_url=game_url, activities=activities,
+                           conversation_starter=conversation_starter, error_message=error_message,
+                           fallback_mode=fallback_mode, demo_mode=request.args.get('demo', False))
+
 
 # 🌐 Routes
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    emotion_data = None
-    persona = None
-    quote = None
-    greeting = None
-    spotify_tracks = []
-    game_url = None
-    activities = []
-    conversation_starter = None
-    error_message = None
-    demo_mode = request.args.get('demo', False)
+# @app.route('/', methods=['GET', 'POST'])
+# @login_required
+# def index():
+#     emotion_data = None
+#     persona = None
+#     quote = None
+#     greeting = None
+#     spotify_tracks = []
+#     game_url = None
+#     activities = []
+#     conversation_starter = None
+#     error_message = None
+#     demo_mode = request.args.get('demo', False)
 
-    if request.method == 'POST':
-        user_input = request.form.get('user_input', '').strip()
-        user = get_or_create_user()
+#     if request.method == 'POST':
+#         user_input = request.form.get('user_input', '').strip()
+#         user = get_or_create_user()
 
-        # Validate input
-        cleaned_input, validation_error = validate_input(user_input)
-        if validation_error:
-            error_message = validation_error
-            if not cleaned_input:
-                return render_template('eample.html', error_message=error_message)
-            user_input = cleaned_input
+#         # Validate input
+#         cleaned_input, validation_error = validate_input(user_input)
+#         if validation_error:
+#             error_message = validation_error
+#             if not cleaned_input:
+#                 return render_template('eample.html', error_message=error_message)
+#             user_input = cleaned_input
 
-        try:
-            # 🔍 Emotion detection
-            emotion_data = analyze_emotion_with_confidence(user_input)
-            emotion = emotion_data['emotion']
-            intensity = emotion_data.get('intensity', 'moderate')
+#         try:
+#             # 🔍 Emotion detection
+#             emotion_data = analyze_emotion_with_confidence(user_input)
+#             emotion = emotion_data['emotion']
+#             intensity = emotion_data.get('intensity', 'moderate')
 
-            # 🎭 Get persona for this emotion
-            persona = MOOD_PERSONAS.get(emotion, MOOD_PERSONAS['neutral'])
+#             # 🎭 Get persona for this emotion
+#             persona = MOOD_PERSONAS.get(emotion, MOOD_PERSONAS['neutral'])
 
-            # 🗣️ Generate persona greeting based on intensity
-            greeting = get_persona_greeting(persona, intensity)
+#             # 🗣️ Generate persona greeting based on intensity
+#             greeting = get_persona_greeting(persona, intensity)
 
-            # ✨ Generate persona quote
-            quote = generate_persona_response(emotion, persona, intensity)
+#             # ✨ Generate persona quote
+#             quote = generate_persona_response(emotion, persona, intensity)
 
-            # 🎵 Get matching Spotify tracks
-            spotify_tracks = emotion_to_spotify.get(emotion, emotion_to_spotify['neutral'])
+#             # 🎵 Get matching Spotify tracks
+#             spotify_tracks = emotion_to_spotify.get(emotion, emotion_to_spotify['neutral'])
 
-            # 🎮 Load matching game
-            game_url = emotion_to_game.get(emotion, emotion_to_game['neutral'])
+#             # 🎮 Load matching game
+#             game_url = emotion_to_game.get(emotion, emotion_to_game['neutral'])
 
-            # 📋 Get time-based activities
-            current_hour = datetime.now().hour
-            activities = get_time_based_activities(persona['activities'], current_hour)
+#             # 📋 Get time-based activities
+#             current_hour = datetime.now().hour
+#             activities = get_time_based_activities(persona['activities'], current_hour)
 
-            # 💬 Get conversation starter
-            conversation_starter = random.choice(persona['conversation_starters'])
+#             # 💬 Get conversation starter
+#             conversation_starter = random.choice(persona['conversation_starters'])
 
-            # 💾 Save to database
-            save_mood_entry(user, emotion_data, user_input, persona['name'])
+#             # 💾 Save to database
+#             save_mood_entry(user, emotion_data, user_input, persona['name'])
 
-            logger.info(f"Processed emotion: {emotion} (intensity: {intensity}) for user {user.session_id}")
+#             logger.info(f"Processed emotion: {emotion} (intensity: {intensity}) for user {user.session_id}")
 
-        except Exception as e:
-            logger.error(f"Error processing mood analysis: {e}")
-            error_message = "Something went wrong analyzing your mood. Please try again."
-            emotion_data = None
+#         except Exception as e:
+#             logger.error(f"Error processing mood analysis: {e}")
+#             error_message = "Something went wrong analyzing your mood. Please try again."
+#             emotion_data = None
 
-    return render_template('eample.html',
-                           emotion_data=emotion_data,
-                           persona=persona,
-                           quote=quote,
-                           greeting=greeting,
-                           spotify_tracks=spotify_tracks,
-                           game_url=game_url,
-                           activities=activities,
-                           conversation_starter=conversation_starter,
-                           error_message=error_message,
-                           demo_mode=demo_mode,
-                           fallback_mode=fallback_mode)
+#     return render_template('eample.html',
+#                            emotion_data=emotion_data,
+#                            persona=persona,
+#                            quote=quote,
+#                            greeting=greeting,
+#                            spotify_tracks=spotify_tracks,
+#                            game_url=game_url,
+#                            activities=activities,
+#                            conversation_starter=conversation_starter,
+#                            error_message=error_message,
+#                            demo_mode=demo_mode,
+#                            fallback_mode=fallback_mode)
 
 # 📊 Enhanced Mood History with Analytics
 
 @app.route('/chat', methods=['POST'])
+@login_required
 def chat_with_therapist():
     """Handle chat messages with AI therapist"""
     if 'user_id' not in session:
         return jsonify({'error': 'No session found'}), 400
     
-    user = get_or_create_user()
+    user = User.query.get(session['user_id'])
     data = request.get_json()
     
     user_message = data.get('message', '').strip()
@@ -988,12 +1088,13 @@ def chat_with_therapist():
         return jsonify({'error': 'Failed to generate response'}), 500
 
 @app.route('/chat/history')
+@login_required
 def get_chat_history():
     """Get recent chat history for user"""
     if 'user_id' not in session:
         return jsonify({'error': 'No session found'}), 400
     
-    user = get_or_create_user()
+    user = User.query.get(session['user_id'])
     
     try:
         messages = ChatMessage.query.filter_by(user_id=user.id)\
@@ -1020,12 +1121,13 @@ def get_chat_history():
         return jsonify({'error': 'Failed to fetch chat history'}), 500
 
 @app.route('/chat/clear')
+@login_required
 def clear_chat_history():
     """Clear chat history for current user"""
     if 'user_id' not in session:
         return jsonify({'error': 'No session found'}), 400
     
-    user = get_or_create_user()
+    user = User.query.get(session['user_id'])
     
     try:
         ChatMessage.query.filter_by(user_id=user.id).delete()
@@ -1036,6 +1138,7 @@ def clear_chat_history():
         return jsonify({'error': 'Failed to clear chat history'}), 500
     
 @app.route('/history')
+@login_required
 def mood_history():
     """Get user's mood history with enhanced analytics"""
     if 'user_id' not in session:
@@ -1102,6 +1205,7 @@ def mood_history():
 
 # 🎯 Enhanced Follow-up Suggestions
 @app.route('/followup/<emotion>')
+@login_required
 def get_followup(emotion):
     """Get enhanced follow-up suggestions for an emotion"""
     try:
@@ -1142,6 +1246,7 @@ def get_followup(emotion):
 
 # 🎭 Persona Deep Dive Route
 @app.route('/persona/<emotion>')
+@login_required
 def persona_details(emotion):
     """Get detailed persona information for demo purposes"""
     try:
@@ -1171,6 +1276,7 @@ def persona_details(emotion):
 
 # 🔄 Emotion Comparison Route for Demo
 @app.route('/compare', methods=['POST'])
+@login_required
 def compare_emotions():
     """Compare how different texts analyze emotions - for demo purposes"""
     try:
@@ -1209,6 +1315,7 @@ def compare_emotions():
 
 # 📈 Analytics Dashboard Route
 @app.route('/analytics')
+@login_required
 def analytics_dashboard():
     """Enhanced analytics for demonstration"""
     if 'user_id' not in session:
@@ -1280,6 +1387,7 @@ def analytics_dashboard():
 
 # 🛠️ System Status Route for Demo
 @app.route('/status')
+@login_required
 def system_status():
     """System status for demonstration"""
     status = {
@@ -1313,6 +1421,7 @@ def system_status():
 
 # 🎮 Demo Control Routes
 @app.route('/demo/reset')
+@login_required
 def demo_reset():
     """Reset demo data for clean presentation"""
     if 'user_id' in session:
@@ -1325,6 +1434,7 @@ def demo_reset():
     return jsonify({'message': 'Demo reset complete'})
 
 @app.route('/demo/sample-data')
+@login_required
 def demo_sample_data():
     """Generate sample data for demo"""
     sample_inputs = [
