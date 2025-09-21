@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if is_signup %}Sign Up{% else %}Login{% endif %} - MoodMate</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+    <div class="auth-container">
+        <div class="auth-box glass-container">
+            <header class="header" style="margin-bottom: var(--spacing-xl);">
+                <h1>🌟 Welcome to MoodMate</h1>
+                <p class="subtitle">{% if is_signup %}Create your account to begin{% else %}Log in to continue your journey{% endif %}</p>
+            </header>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form class="auth-form" method="POST" action="{% if is_signup %}{{ url_for('signup') }}{% else %}{{ url_for('login') }}{% endif %}">
+                <div class="input-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required autocomplete="username">
+                </div>
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="submit-btn">{% if is_signup %}Sign Up{% else %}Log In{% endif %}</button>
+            </form>
+            
+            <div class="auth-toggle">
+                {% if is_signup %}
+                    <p>Already have an account? <a href="{{ url_for('login') }}">Log In</a></p>
+                {% else %}
+                    <p>Don't have an account? <a href="{{ url_for('signup') }}">Sign Up</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>
+
